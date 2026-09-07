@@ -1,0 +1,12 @@
+Metadata-Version: 2.4
+Name: ab-id
+Version: 0.1.0
+Summary: Local antibody identification review application
+Requires-Python: >=3.11
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: httpx<0.28,>=0.27
+Requires-Dist: jinja2<4,>=3.1
+Requires-Dist: pymysql<2,>=1.1
+Requires-Dist: python-dotenv<2,>=1.0
+Requires-Dist: python-multipart<1,>=0.0.9
+Requires-Dist: uvicorn[standard]<1,>=0.30
