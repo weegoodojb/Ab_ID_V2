@@ -85,6 +85,14 @@ def initialize_database(connection: sqlite3.Connection) -> None:
             antigen_two TEXT NOT NULL,
             UNIQUE (antigen_one, antigen_two)
         );
+
+        CREATE TABLE IF NOT EXISTS patient_antigen_results (
+            sample_id TEXT NOT NULL,
+            antigen TEXT NOT NULL,
+            result TEXT NOT NULL,
+            saved_at TEXT NOT NULL,
+            PRIMARY KEY (sample_id, antigen)
+        );
         """
     )
     connection.executemany(
@@ -488,6 +496,36 @@ def list_review_results(
         (sample_id,),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+def save_patient_antigen_result(
+    connection: sqlite3.Connection,
+    sample_id: str,
+    antigen: str,
+    result: str,
+    saved_at: str,
+) -> None:
+    with connection:
+        connection.execute(
+            """
+            INSERT INTO patient_antigen_results (sample_id, antigen, result, saved_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(sample_id, antigen) DO UPDATE SET
+                result = excluded.result,
+                saved_at = excluded.saved_at
+            """,
+            (sample_id, antigen, result, saved_at),
+        )
+
+
+def list_patient_antigen_results(
+    connection: sqlite3.Connection, sample_id: str
+) -> dict[str, str]:
+    rows = connection.execute(
+        "SELECT antigen, result FROM patient_antigen_results WHERE sample_id = ?",
+        (sample_id,),
+    ).fetchall()
+    return {row["antigen"]: row["result"] for row in rows}
 
 
 def _value(row: Mapping[str, object], *keys: str) -> str:

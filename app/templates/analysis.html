@@ -60,7 +60,15 @@
         <tbody>{% for row in screening_matrix %}<tr><th scope="row" class="cell-number">{{ row.cell }}{% if row.donor_number %}<small> #{{ row.donor_number }}</small>{% endif %}{% if row.special %}<small> {{ row.special }}</small>{% endif %}</th>{% for antigen in antigram_columns %}<td class="antigram-value">{{ row.antigens[antigen] or '-' }}</td>{% endfor %}<td class="patient-result">{{ row.reactions.SCREENING or '-' }}</td></tr>{% endfor %}</tbody>
       </table></div>{% endif %}
       {% if screening_matrix %}<div class="logic-result screening-logic"><strong>Screening 처리 결과</strong>{% if screening_matches %}<span>3개 Cell 전체 일치: {% for antigen in screening_matches %}<b>anti-{{ antigen }}</b>{% if not loop.last %}, {% endif %}{% endfor %}</span>{% else %}<span>3개 Cell 전체와 일치하는 항원이 없습니다.</span>{% endif %}</div>{% endif %}
-      {% if id_matrix %}<div class="stage-results"><strong>ID 단계별 처리 결과</strong>{% for assessment in id_stage_assessments %}<div class="logic-result"><b>{{ assessment.stage }}</b><span>{{ assessment.status }}</span><span>{{ assessment.detail }}</span>{% if assessment.candidates %}<span>{% for candidate in assessment.candidates %}{{ candidate }}{% if not loop.last %}, {% endif %}{% endfor %}</span>{% endif %}</div>{% endfor %}</div>{% endif %}
+      {% if id_matrix %}<div class="stage-results"><strong>ID 단계별 처리 결과</strong><table class="stage-table"><thead><tr><th>단계</th><th>상태</th><th>후보</th><th>세부사항</th></tr></thead><tbody>{% for assessment in id_stage_assessments %}<tr><th scope="row">{{ assessment.stage }}</th><td class="stage-status">{{ assessment.status }}</td><td>{% if assessment.candidates %}{% for candidate in assessment.candidates %}{{ candidate }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}-{% endif %}</td><td>{{ assessment.detail }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+      {% if candidate_antigens %}<div class="patient-antigen-panel"><strong>확정/후보 항체에 대한 환자 항원검사 결과</strong>
+        <form method="post" action="/save-patient-antigen">
+          <input type="hidden" name="sample_id" value="{{ selected_sample_id }}"><input type="hidden" name="id_lot_number" value="{{ selected_id_lot_number }}"><input type="hidden" name="screening_lot_number" value="{{ selected_screening_lot_number }}"><input type="hidden" name="start_date" value="{{ start_date }}"><input type="hidden" name="end_date" value="{{ end_date }}">
+          {% for antigen in candidate_antigens %}<label>{{ antigen }} 항원<input type="hidden" name="antigens" value="{{ antigen }}"><select name="results"><option value="미검사" {% if patient_antigen_results.get(antigen, '미검사') == '미검사' %}selected{% endif %}>미검사</option><option value="음성" {% if patient_antigen_results.get(antigen) == '음성' %}selected{% endif %}>음성</option><option value="양성" {% if patient_antigen_results.get(antigen) == '양성' %}selected{% endif %}>양성</option></select></label>{% endfor %}
+          <button type="submit">환자 항원검사 결과 저장</button>
+        </form>
+        {% if consistency_warnings %}{% for warning in consistency_warnings %}<p class="consistency-warning">{{ warning }}</p>{% endfor %}{% endif %}
+      </div>{% endif %}
     </section>
     {% endif %}
 

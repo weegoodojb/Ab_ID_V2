@@ -2,6 +2,7 @@ from app.db.repository import (
     get_ident_test_date,
     initialize_database,
     list_lot_numbers_valid_on,
+    list_patient_antigen_results,
     open_database,
     replace_agpf_snapshot,
     replace_rst_snapshot,
@@ -10,6 +11,7 @@ from app.db.repository import (
     list_dosage_pairs,
     replace_antigen_rules,
     replace_dosage_pairs,
+    save_patient_antigen_result,
     save_review_result,
 )
 
@@ -84,3 +86,17 @@ def test_saves_dosage_antigen_pairs(tmp_path):
         ("Fya", "Fyb"),
         ("S", "s"),
     ]
+
+
+def test_saves_and_lists_patient_antigen_results(tmp_path):
+    connection = open_database(tmp_path / "ab-id.sqlite3")
+    initialize_database(connection)
+
+    save_patient_antigen_result(connection, "S1", "E", "양성", "2026-09-04T10:00:00+00:00")
+    save_patient_antigen_result(connection, "S1", "Fya", "음성", "2026-09-04T10:00:00+00:00")
+    save_patient_antigen_result(connection, "S1", "E", "음성", "2026-09-05T10:00:00+00:00")
+
+    results = list_patient_antigen_results(connection, "S1")
+
+    assert results == {"E": "음성", "Fya": "음성"}
+    assert list_patient_antigen_results(connection, "S2") == {}

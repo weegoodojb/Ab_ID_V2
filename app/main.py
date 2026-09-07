@@ -25,15 +25,18 @@ from app.db.repository import (
     list_lot_numbers,
     list_lot_numbers_valid_on,
     list_lot_options_valid_on,
+    list_patient_antigen_results,
     list_review_results,
     list_sample_directory,
     list_sample_ids,
     open_database,
+    save_patient_antigen_result,
     save_review_result,
     save_sample_directory,
     replace_antigen_rules,
     replace_dosage_pairs,
 )
+from app.services.antigen_consistency import check_antigen_consistency
 from app.services.identification import assess_stages
 from app.services.result_normalizer import classify_method, display_antigen, normalize_result
 from app.services.sync import MySqlMiddlewareSource, mysql_connection_status, synchronize_sample
@@ -225,6 +228,36 @@ def save_antigen_rules(
     return _render(request, message="항원 기준정보를 SQLite에 저장했습니다.")
 
 
+@app.post("/save-patient-antigen", response_class=HTMLResponse)
+def save_patient_antigen(
+    request: Request,
+    sample_id: str = Form(...),
+    id_lot_number: str = Form(""),
+    screening_lot_number: str = Form(""),
+    antigens: list[str] = Form([]),
+    results: list[str] = Form([]),
+    start_date: str = Form(""),
+    end_date: str = Form(""),
+):
+    saved_at = datetime.now(UTC).isoformat(timespec="seconds")
+    connection = open_database(get_settings().sqlite_path)
+    try:
+        for antigen, result in zip(antigens, results):
+            if antigen.strip():
+                save_patient_antigen_result(connection, sample_id, antigen.strip(), result.strip(), saved_at)
+    finally:
+        connection.close()
+    return _render(
+        request,
+        sample_id,
+        id_lot_number,
+        screening_lot_number,
+        start_date=start_date,
+        end_date=end_date,
+        message="환자 항원검사 결과를 저장했습니다.",
+    )
+
+
 def _render(
     request: Request,
     sample_id: str | None = None,
@@ -288,6 +321,9 @@ def _render(
         selected_patient = get_sample_directory_entry(connection, sample_id) if sample_id else None
         antigen_rules = list_antigen_rules(connection)
         dosage_pair_rows = list_dosage_pairs(connection)
+        patient_antigen_results = (
+            list_patient_antigen_results(connection, sample_id) if sample_id else {}
+        )
     finally:
         connection.close()
 
@@ -312,6 +348,10 @@ def _render(
         assessment.stage: {_display_antigen(antigen) for antigen in assessment.matching_antigens}
         for assessment in id_stage_assessments
     }
+    candidate_antigens = tuple(
+        sorted({antigen for assessment in id_stage_assessments for antigen in assessment.matching_antigens})
+    )
+    consistency_warnings = check_antigen_consistency(set(candidate_antigens), patient_antigen_results)
     return templates.TemplateResponse(
         request,
         "analysis.html",
@@ -344,6 +384,9 @@ def _render(
             "id_stage_matches": id_stage_matches,
             "antigen_rules": antigen_rules,
             "dosage_pair_rows": dosage_pair_rows,
+            "candidate_antigens": candidate_antigens,
+            "patient_antigen_results": patient_antigen_results,
+            "consistency_warnings": consistency_warnings,
         },
     )
 
